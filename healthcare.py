@@ -221,15 +221,17 @@ plotly_dark_layout = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(color="#FFFFFF"),
-    xaxis=dict(gridcolor="rgba(255,255,255,0.1)"),
-    yaxis=dict(gridcolor="rgba(255,255,255,0.1)")
+    xaxis=dict(gridcolor="rgba(255,255,255,0.1)", title_font=dict(color="#FFFFFF")),
+    yaxis=dict(gridcolor="rgba(255,255,255,0.1)", title_font=dict(color="#FFFFFF"))
 )
 
 with chart_col1:
     st.subheader("Medical Conditions Breakdown")
     if not filtered_data.empty:
+        # Fixed the index aggregation bug by using reset_index
+        df_condition = filtered_data.groupby("medical_condition").size().reset_index(name="Count")
         fig_condition = px.bar(
-            filtered_data.groupby("medical_condition").size().reset_name(name="Count"),
+            df_condition,
             x="medical_condition", y="Count",
             labels={"medical_condition": "Condition", "Count": "Number of Patients"},
             color_discrete_sequence=["#00C6FF"]
@@ -237,32 +239,40 @@ with chart_col1:
         fig_condition.update_layout(plotly_dark_layout)
         st.plotly_chart(fig_condition, use_container_width=True)
     else:
-        st.info("No data available for the active filters.")
+        st.info("No records match the current filters.")
 
 with chart_col2:
-    st.subheader("Billing Amount vs Age Trend")
+    st.subheader("Admission Type by Insurance Provider")
     if not filtered_data.empty:
-        fig_scatter = px.scatter(
-            filtered_data, x="age", y="billing_amount",
+        df_insurance = filtered_data.groupby(["insurance_provider", "admission_type"]).size().reset_index(name="Count")
+        fig_insurance = px.bar(
+            df_insurance,
+            x="insurance_provider", y="Count",
             color="admission_type",
-            labels={"age": "Patient Age", "billing_amount": "Billing ($)"},
-            color_discrete_sequence=["#FF758C", "#C471F5", "#00F2A9"]
+            barmode="group",
+            labels={"insurance_provider": "Insurance Provider", "Count": "Admissions"},
+            color_discrete_sequence=["#C471F5", "#00F2A9", "#FFD200"]
         )
-        fig_scatter.update_layout(plotly_dark_layout)
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        fig_insurance.update_layout(plotly_dark_layout)
+        st.plotly_chart(fig_insurance, use_container_width=True)
     else:
-        st.info("No data available for the active filters.")
+        st.info("No records match the current filters.")
+
+st.markdown("---")
 
 # =========================================================
-# DATA TABLE & DOWNLOAD
+# RAW DATA INSPECTION & DOWNLOAD
 # =========================================================
-st.subheader("Patient Records Detail View")
-st.dataframe(filtered_data, use_container_width=True)
-
-csv_download_data = filtered_data.to_csv(index=False).encode('utf-8')
-st.download_button(
-    label="📥 Export Filtered Dataset to CSV",
-    data=csv_download_data,
-    file_name="filtered_healthcare_records.csv",
-    mime="text/csv"
-)
+st.subheader("📋 Filtered Patient Logs")
+if not filtered_data.empty:
+    st.dataframe(filtered_data, use_container_width=True)
+    
+    csv_download = filtered_data.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Filtered Data as CSV",
+        data=csv_download,
+        file_name="filtered_healthcare_data.csv",
+        mime="text/csv"
+    )
+else:
+    st.info("No data available to display or download.")
